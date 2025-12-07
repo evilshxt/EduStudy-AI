@@ -1,4 +1,4 @@
-import type { Message, MessageType, QuizData, LessonData, InteractiveData } from '../types/chat';
+import type { Message, MessageType } from '../types/chat';
 
 interface VoiceflowResponse {
   type: string;
@@ -52,13 +52,32 @@ class VoiceflowService {
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Voiceflow API error:', response.status, errorText);
         throw new Error(`Voiceflow API error: ${response.status} ${response.statusText}`);
       }
 
       const data: VoiceflowMessage[] = await response.json();
 
-      // Extract conversation ID from response headers if it's a new conversation
-      const newConversationId = response.headers.get('conversation_id') || conversationId || 'new';
+      // Extract conversation ID from response
+      // Voiceflow typically returns conversation ID in response data or headers
+      let newConversationId = conversationId || 'new';
+
+      // Check if any response item contains conversation info
+      const conversationItem = data.find(item =>
+        item.type === 'conversation' ||
+        item.type === 'session' ||
+        (item.payload && typeof item.payload === 'object' && 'conversationId' in item.payload)
+      );
+
+      if (conversationItem?.payload?.conversationId) {
+        newConversationId = conversationItem.payload.conversationId;
+      } else if (response.headers.get('conversation-id')) {
+        newConversationId = response.headers.get('conversation-id')!;
+      } else if (response.headers.get('x-conversation-id')) {
+        newConversationId = response.headers.get('x-conversation-id')!;
+      }
+
 
       // Process the response to create Message objects
       const messages: Message[] = data
