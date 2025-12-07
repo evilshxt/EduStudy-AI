@@ -28,12 +28,13 @@ class VoiceflowService {
 
   async sendMessage(message: string, conversationId?: string): Promise<{ messages: Message[]; conversationId: string }> {
     try {
-      const url = `${this.baseUrl}/state/user/${conversationId || 'new'}/interact`;
+      const usedId = conversationId || Date.now().toString();
+      const url = `${this.baseUrl}/state/${this.projectId}/user/${usedId}/interact`;
 
       const requestBody = {
         action: {
           type: 'text',
-          payload: message,
+          payload: { text: message },
         },
         config: {
           tts: false,
@@ -45,8 +46,7 @@ class VoiceflowService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': this.apiKey,
-          'versionID': 'production',
+          'Authorization': `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify(requestBody),
       });
@@ -61,7 +61,7 @@ class VoiceflowService {
 
       // Extract conversation ID from response
       // Voiceflow typically returns conversation ID in response data or headers
-      let newConversationId = conversationId || 'new';
+      let newConversationId = usedId;
 
       // Check if any response item contains conversation info
       const conversationItem = data.find(item =>
